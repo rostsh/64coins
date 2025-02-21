@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>64 Coins Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 20px auto;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+
+        .game-panel {
+            flex: 1;
+        }
+
+        .instructions-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            max-width: 100%;
+            touch-action: none;
+        }
+        
+        .cell {
+            aspect-ratio: 1;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #fff;
+            touch-action: none;
+        }
+        
+        .cell:nth-child(even) {
+            background-color: #f0f0f0;
+        }
+        
+        .coin {
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            background-color: gray;
+            position: absolute;
+        }
+        
+        .number {
+            font-size: 10px;
+            color: gray;
+            position: absolute;
+            top: 2px;
+            right: 2px;
+        }
+        
+        .magic::after {
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            background-color: rgba(255, 0, 0, 0.5);
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .flip::after {
+            content: '↗';
+            position: absolute;
+            font-size: 24px;
+            color: blue;
+            transform: rotate(45deg);
+            z-index: 1;
+        }
+
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e8e8e8;
+            border-radius: 4px;
+        }
+
+        .mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-panel">
+            <div id="status"></div>
+            <div class="game-board" id="board"></div>
+        </div>
+        <div class="instructions-panel">
+            <h2>How to Play</h2>
+            <ul>
+                <li><strong>Desktop:</strong>
+                    <ul>
+                        <li>Left Click: Flip a coin</li>
+                        <li>Right Click: Mark magic square</li>
+                    </ul>
+                </li>
+                <li><strong>Mobile:</strong>
+                    <ul>
+                        <li>Tap: Flip a coin</li>
+                        <li>Long Press: Mark magic square</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <button class="mode-toggle" id="modeToggle">Magic Mode: OFF</button>
+
+    <script>
+        class CoinsGame {
+            constructor() {
+                this.coins = Array(64).fill(0);
+                this.boardMatrix = Array.from({length: 64}, (_, i) => i);
+                this.boardRedux = 0;
+                this.magicSquare = null;
+                this.flipSquare = null;
+                this.flagMagic = false;
+                this.flagFlip = false;
+                this.magicMode = false;
+                this.longPressTimer = null;
+                this.touchStartTime = 0;
+                
+                this.initializeBoard();
+                this.updateDisplay();
+                this.initializeModeToggle();
+            }
+
+            initializeBoard() {
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+                
+                for (let i = 0; i < 64; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.index = i;
+                    
+                    const number = document.createElement('div');
+                    number.className = 'number';
+                    number.textContent = i;
+                    cell.appendChild(number);
+
+                    // Mouse events
+                    cell.addEventListener('click', (e) => this.handleClick(i, e));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        this.handleMagicSquare(i);
+                    });
+
+                    // Touch events
+                    cell.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleTouchStart(i);
+                    });
+
+                    cell.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.handleTouchEnd(i);
+                    });
+
+                    cell.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                    });
+
+                    board.appendChild(cell);
+                }
+            }
+
+            initializeModeToggle() {
+                const toggle = document.getElementById('modeToggle');
+                toggle.addEventListener('click', () => {
+                    this.magicMode = !this.magicMode;
+                    toggle.textContent = `Magic Mode: ${this.magicMode ? 'ON' : 'OFF'}`;
+                });
+            }
+
+            handleClick(index, event) {
+                if (this.magicMode) {
+                    this.handleMagicSquare(index);
+                } else {
+                    this.handleCoinFlip(index);
+                }
+            }
+
+            handleTouchStart(index) {
+                this.touchStartTime = Date.now();
+                this.longPressTimer = setTimeout(() => {
+                    this.handleMagicSquare(index);
+                }, 500);
+            }
+
+            handleTouchEnd(index) {
+                const touchDuration = Date.now() - this.touchStartTime;
+                clearTimeout(this.longPressTimer);
+                
+                if (touchDuration < 500) {
+                    if (this.magicMode) {
+                        this.handleMagicSquare(index);
+                    } else {
+                        this.handleCoinFlip(index);
+                    }
+                }
+            }
+
+            handleCoinFlip(index) {
+                if (index === this.flipSquare) {
+                    this.flagFlip = false;
+                }
+                this.coins[index] ^= 1;
+                this.updateDisplay();
+            }
+
+            handleMagicSquare(index) {
+                this.magicSquare = index;
+                this.flipSquare = this.boardRedux ^ this.magicSquare;
+                this.flagMagic = !this.flagMagic;
+                this.flagFlip = !this.flagFlip;
+                this.updateDisplay();
+            }
+
+            updateBoardNumber() {
+                this.boardRedux = this.coins.reduce((acc, curr, idx) => 
+                    acc ^ (curr * this.boardMatrix[idx]), 0);
+            }
+
+            updateDisplay() {
+                this.updateBoardNumber();
+                const cells = document.querySelectorAll('.cell');
+                
+                cells.forEach((cell, index) => {
+                    cell.className = 'cell';
+                    cell.querySelector('.coin')?.remove();
+
+                    if (this.coins[index] === 1) {
+                        const coin = document.createElement('div');
+                        coin.className = 'coin';
+                        cell.appendChild(coin);
+                    }
+
+                    if (this.flagMagic && index === this.magicSquare) {
+                        cell.classList.add('magic');
+                    }
+                    if (this.flagFlip && index === this.flipSquare) {
+                        cell.classList.add('flip');
+                    }
+                });
+
+                let status = `Board number: ${this.boardRedux} `;
+                if (this.flagMagic) {
+                    status += `Magic square: ${this.magicSquare} Flip square: ${this.flipSquare}`;
+                }
+                document.getElementById('status').textContent = status;
+            }
+        }
+
+        // Initialize the game
+        const game = new CoinsGame();
+    </script>
+</body>
+</html>
