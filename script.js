@@ -4,6 +4,14 @@ let boardMatrix;
 let boardRedux;
 let magicSquare;
 let flipSquare;
+let instructions = "Left-click a square to flip a coin in it. Right-click a square to make it 'magic'; it will be marked with a red dot, and the square where you need to flip the coin will be marked with a blue marker.";
+
+function displayInstructions() {
+    fill(0);
+    textSize(14);
+    textAlign(CENTER, TOP);
+    text(instructions, width / 2, 10);
+}
 let flagMagic = false;
 let flagFlip = false;
 
@@ -39,6 +47,27 @@ function mousePressed() {
     return false; // prevent default
 }
 
+function touchStarted() {
+
+    let x = Math.floor(TouchEvent.x / 50);
+    let y = Math.floor(TouchEvent.y / 50);
+    if (TouchEvent.touches.length > 0) {
+        if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+            coins[y][x] ^= 1;
+            updateDisplay();
+        }
+    } else {
+        if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+            magicSquare = boardMatrix[y][x];
+            flipSquare = boardRedux ^ magicSquare;
+            flagMagic = !flagMagic;
+            flagFlip = !flagFlip;
+            updateDisplay();
+        }
+    }
+    return false; // prevent default
+}
+
 function updateBoardNumber() {
     boardRedux = coins.flat().reduce((acc, val, idx) => acc ^ (val * boardMatrix[Math.floor(idx / 8)][idx % 8]), 0);
 }
@@ -46,6 +75,7 @@ function updateBoardNumber() {
 function updateDisplay() {
     updateBoardNumber();
     background(255);
+    displayInstructions();
 
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
