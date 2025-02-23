@@ -47,23 +47,41 @@ function mousePressed() {
     return false; // prevent default
 }
 
-function touchStarted() {
+// add touch functionality: if short tap, flip coin; if long tap, mark as magic 
+function touchStarted(event) {
+    timeStamp = event.timeStamp;
+    let x = Math.floor(touchX / 50);
+    let y = Math.floor(touchY / 50);
 
-    let x = Math.floor(TouchEvent.x / 50);
-    let y = Math.floor(TouchEvent.y / 50);
-    if (TouchEvent.touches.length > 0) {
+    if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+        coins[y][x] ^= 1;
+        updateDisplay();
+    }
+    return false; // prevent default
+}
+
+function touchEnded(event) {
+    // if short tap, flip coin; if long tap, mark as magic
+    if (event.timeStamp - timeStamp < 500) {
+        // short tap
+        let x = Math.floor(touchX / 50);
+        let y = Math.floor(touchY / 50);
         if (x >= 0 && x < 8 && y >= 0 && y < 8) {
             coins[y][x] ^= 1;
             updateDisplay();
         }
-    } else {
+    else {
+        // long tap
+        let x = Math.floor(touchX / 50);
+        let y = Math.floor(touchY / 50);
         if (x >= 0 && x < 8 && y >= 0 && y < 8) {
             magicSquare = boardMatrix[y][x];
             flipSquare = boardRedux ^ magicSquare;
             flagMagic = !flagMagic;
             flagFlip = !flagFlip;
             updateDisplay();
-        }
+            }
+        }   
     }
     return false; // prevent default
 }
