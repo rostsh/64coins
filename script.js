@@ -49,6 +49,9 @@ function mousePressed() {
 
 // add touch functionality: if short tap, flip coin; if long tap, mark as magic 
 function touchStarted(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
     timeStamp = event.timeStamp;
     let x = Math.floor(touchX / 50);
     let y = Math.floor(touchY / 50);
@@ -61,6 +64,9 @@ function touchStarted(event) {
 }
 
 function touchEnded(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
     // if short tap, flip coin; if long tap, mark as magic
     if (event.timeStamp - timeStamp < 500) {
         // short tap
